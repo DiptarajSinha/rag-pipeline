@@ -14,4 +14,3 @@ pypdf
 sentence-transformers
 pytest
 pytest-asyncio
-torch
