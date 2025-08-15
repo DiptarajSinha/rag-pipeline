@@ -1,10 +1,8 @@
 fastapi
 uvicorn[standard]
-httpx
 chromadb
 openai
 pydantic
-pydantic-settings
 python-multipart
 sqlalchemy
 cohere
@@ -12,5 +10,3 @@ python-dotenv
 google-generativeai
 pypdf
 sentence-transformers
-pytest
-pytest-asyncio
