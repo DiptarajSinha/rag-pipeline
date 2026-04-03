@@ -1,3 +1,8 @@
+import re
+import logging
+
+logger = logging.getLogger("rag-pipeline.text_processing")
+
 def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[str]:
     """Split text into overlapping chunks"""
     if not text.strip():
@@ -29,7 +34,7 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[st
     return chunks
 
 def extract_pdf_text(file_path: str) -> str:
-    """Extract text from PDF file"""
+    """Extract text from PDF file with improved character handling"""
     try:
         from pypdf import PdfReader
         
@@ -37,24 +42,34 @@ def extract_pdf_text(file_path: str) -> str:
         text_content = ""
         
         for page in reader.pages:
+            # Using basic extraction - cleaning will happen in clean_text
             page_text = page.extract_text()
             if page_text:
                 text_content += page_text + "\n"
         
         return text_content.strip()
     except Exception as e:
-        print(f"Error extracting PDF text: {e}")
+        logger.error(f"Error extracting PDF text: {e}")
         return ""
 
 def clean_text(text: str) -> str:
-    """Clean and normalize text"""
+    """Clean and normalize text, fixing 's p a c e d' character issues"""
     if not text:
         return ""
     
-    # Remove extra whitespace
-    text = " ".join(text.split())
+    # Fix 's p a c e d o u t' characters (common in some PDFs)
+    # This regex looks for single letters separated by single spaces
+    # and joins them back together if they appear in a sequence.
+    def fix_spaced_text(match):
+        # Join the characters and remove the spaces between them
+        return match.group(0).replace(" ", "")
+
+    # Look for sequences of [Letter Space Letter Space Letter]
+    # We do this a few times to catch longer words
+    text = re.sub(r'([a-zA-Z0-9])\s([a-zA-Z0-9])\s([a-zA-Z0-9])\s([a-zA-Z0-9])', fix_spaced_text, text)
+    text = re.sub(r'([a-zA-Z0-9])\s([a-zA-Z0-9])', fix_spaced_text, text)
     
-    # Remove special characters if needed
-    # Add more cleaning rules here as needed
+    # Remove extra whitespace and normalize
+    text = " ".join(text.split())
     
     return text
