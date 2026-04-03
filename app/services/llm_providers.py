@@ -4,7 +4,7 @@ from google import genai
 import openai
 import cohere
 from pydantic import BaseModel
-from .config import settings
+from ..config import settings
 
 logger = logging.getLogger("rag-pipeline.llm_providers")
 

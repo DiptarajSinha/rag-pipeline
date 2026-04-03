@@ -3,7 +3,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 import os
 import logging
-from .config import settings
+from ..config import settings
 
 logger = logging.getLogger("rag-pipeline.doc_store")
 

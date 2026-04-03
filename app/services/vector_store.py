@@ -4,7 +4,7 @@ from google.genai import types
 import os
 import logging
 from typing import List
-from .config import settings
+from ..config import settings
 
 logger = logging.getLogger("rag-pipeline.vector_store")
 
