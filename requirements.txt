@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+httpx
+psycopg2-binary
+vecs
+openai
+pydantic
+pydantic-settings
+python-multipart
+sqlalchemy
+cohere
+python-dotenv
+google-generativeai
+pypdf
+pytest
+pytest-asyncio

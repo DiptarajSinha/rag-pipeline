@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+data/
+uploads/
+metadata.db
+chroma_data/
+tests/
+.git/
+.gitignore
+implementation_plan.md
+task.md
+rag_pipeline_project.md
+working.md
+files_list.txt

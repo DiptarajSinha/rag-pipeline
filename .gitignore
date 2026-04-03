@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Project specifics
+uploads/
+data/
+chroma_data/
+metadata.db
+*.log
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
