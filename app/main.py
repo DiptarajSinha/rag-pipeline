@@ -13,7 +13,7 @@ logger = logging.getLogger("rag-pipeline")
 app = FastAPI(
     title="RAG Pipeline API",
     description="Document upload and intelligent querying system with metadata management",
-    version="1.0.0",
+    version="1.0.0-prod-v1.4",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -25,7 +25,7 @@ app.include_router(metadata.router)
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Initializing RAG Pipeline...")
+    logger.info("Initializing RAG Pipeline v1.4...")
     logger.info(f"Debug mode: {settings.DEBUG}")
 
 @app.get("/")
@@ -33,7 +33,7 @@ async def root():
     return {
         "message": "RAG Pipeline API",
         "debug": settings.DEBUG,
-        "version": "1.0.0-prod-v1.3",
+        "version": "1.0.0-prod-v1.4",
         "status": "online",
         "endpoints": [
             "/docs - API Documentation",
@@ -56,6 +56,7 @@ async def health():
         
         return {
             "status": "healthy",
+            "version": "v1.4",
             "services": {
                 "api": "running",
                 "database": "connected",
@@ -73,13 +74,3 @@ async def health():
             "status": "degraded",
             "error": str(e)
         }
-
-@app.get("/config-test")
-async def config_test():
-    """Test configuration and API keys"""
-    return {
-        "gemini_key_loaded": bool(settings.GOOGLE_GEMINI_API_KEY),
-        "openai_key_loaded": bool(settings.OPENAI_API_KEY),
-        "cohere_key_loaded": bool(settings.COHERE_API_KEY),
-        "debug_mode": settings.DEBUG
-    }

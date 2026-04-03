@@ -7,33 +7,29 @@ from typing import List
 from ..config import settings
 
 logger = logging.getLogger("rag-pipeline.vector_store")
+logger.info("VECTOR_STORE_V1.4_INITIALIZED")
 
 # Initialize Gemini Client
 client = None
 if settings.GOOGLE_GEMINI_API_KEY:
     client = genai.Client(api_key=settings.GOOGLE_GEMINI_API_KEY)
 
-EMBEDDING_MODEL = "text-embedding-004" # Modern embedding model
+EMBEDDING_MODEL = "text-embedding-004"
 VECTOR_DIMENSION = 768
-
-# DB URL for Supabase
-DB_URL = settings.DB_URL
-COLLECTION_NAME = "document_embeddings_v2" # Renamed to avoid dimension mismatch
+COLLECTION_NAME = "document_embeddings_v2"
 
 def _get_vecs_collection():
     """Helper to get/create a vecs collection with better diagnostics"""
     db_url = settings.DB_URL
     if not db_url:
-        logger.error("DATABASE ERROR: DB_URL is missing in settings.")
-        raise ValueError("DB_URL environment variable is not set. Please add it to Hugging Face Secrets.")
+        raise ValueError("DB_URL is missing. Please add it to Hugging Face Secrets.")
         
     try:
         # Create a vecs client
-        logger.info(f"Connecting to Supabase at {db_url.split('@')[-1]}...")
+        logger.info(f"Connecting to Supabase...")
         vx = vecs.create_client(db_url)
         
         # Get or create the collection
-        logger.info(f"Accessing collection: {COLLECTION_NAME} (Dim: {VECTOR_DIMENSION})")
         return vx.get_or_create_collection(name=COLLECTION_NAME, dimension=VECTOR_DIMENSION)
     except Exception as e:
         error_msg = str(e)
@@ -41,7 +37,7 @@ def _get_vecs_collection():
         raise ConnectionError(f"Critical error connecting to Supabase: {error_msg}")
 
 def _get_embeddings(texts: List[str]) -> List[List[float]]:
-    """Helper to get蓬 embeddings from Gemini API with batching (limit: 100 per request)"""
+    """Helper to get embeddings from Gemini API with batching"""
     if not client:
         raise ValueError("Gemini Client not initialized. Check API key.")
         
@@ -51,16 +47,12 @@ def _get_embeddings(texts: List[str]) -> List[List[float]]:
     try:
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]
-            logger.info(f"Generating embeddings for batch {i//batch_size + 1} ({len(batch)} items)")
-            
             result = client.models.embed_content(
                 model=EMBEDDING_MODEL,
                 contents=batch,
                 config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
             )
-            # Handle the result format from the new SDK
             all_embeddings.extend([item.values for item in result.embeddings])
-            
         return all_embeddings
     except Exception as e:
         logger.error(f"Gemini Embedding API error: {e}")
@@ -69,50 +61,33 @@ def _get_embeddings(texts: List[str]) -> List[List[float]]:
 def add_document_chunks(doc_id: str, chunks: List[str]):
     """Add document chunks to Supabase using Gemini Embeddings"""
     collection = _get_vecs_collection()
-    if not collection:
-        raise ConnectionError("Could not connect to Supabase pgvector.")
-        
-    try:
-        if not chunks:
-            return
+    # No check needed, _get_vecs_collection raises if it fails
             
-        # Generate embeddings via API (now with batching)
-        embeddings = _get_embeddings(chunks)
-        
-        # Prepare data for vecs (id, vector, metadata)
-        records = []
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-            chunk_id = f"{doc_id}_chunk_{i}"
-            records.append((
-                chunk_id,
-                embedding,
-                {"document_id": doc_id, "chunk_index": i, "content": chunk}
-            ))
-        
-        # Upsert into pgvector
-        logger.info(f"Upserting {len(records)} records into Supabase...")
-        collection.upsert(records=records)
-        
-        # Create an index for faster retrieval
-        logger.info("Updating vector index...")
-        collection.create_index()
-        
-    except Exception as e:
-        logger.error(f"Error adding chunks to Supabase: {e}")
-        raise # Raise to show details in the API response
+    # Generate embeddings via API
+    embeddings = _get_embeddings(chunks)
+    
+    # Prepare data for vecs
+    records = []
+    for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+        chunk_id = f"{doc_id}_chunk_{i}"
+        records.append((
+            chunk_id,
+            embedding,
+            {"document_id": doc_id, "chunk_index": i, "content": chunk}
+        ))
+    
+    # Upsert into pgvector
+    logger.info(f"Upserting {len(records)} records into Supabase...")
+    collection.upsert(records=records)
+    collection.create_index()
 
 def search_similar_chunks(query: str, k: int = 5) -> List[str]:
-    """Search for similar document chunks using Gemini Embedding API and Supabase"""
+    """Search for similar document chunks"""
     collection = _get_vecs_collection()
-    if not collection:
-        return []
-        
     if not client:
-        logger.error("Gemini Client not initialized")
         return []
         
     try:
-        # Generate query embedding
         result = client.models.embed_content(
             model=EMBEDDING_MODEL,
             contents=query,
@@ -120,13 +95,11 @@ def search_similar_chunks(query: str, k: int = 5) -> List[str]:
         )
         query_embedding = result.embeddings[0].values
         
-        # Search in pgvector
         results = collection.query(
             data=query_embedding,
             limit=k,
             include_metadata=True
         )
-        
         return [res[1].get("content", "") for res in results if res[1]]
     except Exception as e:
         logger.error(f"Error searching Supabase: {e}")
@@ -134,11 +107,8 @@ def search_similar_chunks(query: str, k: int = 5) -> List[str]:
 
 def get_collection_stats() -> dict:
     """Get statistics about the document collection"""
-    collection = _get_vecs_collection()
-    if not collection:
-        return {"total_chunks": 0}
-        
     try:
+        collection = _get_vecs_collection()
         total = collection.count()
         return {"total_chunks": total}
     except Exception as e:
