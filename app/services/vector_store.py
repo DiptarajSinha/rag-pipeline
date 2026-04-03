@@ -18,7 +18,7 @@ VECTOR_DIMENSION = 768
 
 # DB URL for Supabase
 DB_URL = settings.DB_URL
-COLLECTION_NAME = "document_embeddings"
+COLLECTION_NAME = "document_embeddings_v2" # Renamed to avoid dimension mismatch
 
 def _get_vecs_collection():
     """Helper to get/create a vecs collection"""
@@ -30,10 +30,12 @@ def _get_vecs_collection():
         # Create a vecs client
         vx = vecs.create_client(DB_URL)
         # Get or create the collection
+        logger.info(f"Connecting to vecs collection: {COLLECTION_NAME}")
         return vx.get_or_create_collection(name=COLLECTION_NAME, dimension=VECTOR_DIMENSION)
     except Exception as e:
-        logger.error(f"Failed to connect to Supabase pgvector: {e}")
-        return None
+        logger.error(f"SUPABASE_VECS_ERROR: {str(e)}")
+        # Raise it instead of returning None so the API can see it
+        raise ConnectionError(f"Supabase Vector Store connection failed: {str(e)}")
 
 def _get_embeddings(texts: List[str]) -> List[List[float]]:
     """Helper to get蓬 embeddings from Gemini API with batching (limit: 100 per request)"""
