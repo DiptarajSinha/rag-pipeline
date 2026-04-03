@@ -13,7 +13,7 @@ logger = logging.getLogger("rag-pipeline")
 app = FastAPI(
     title="RAG Pipeline API",
     description="Production-grade Document RAG with Supabase and Gemini",
-    version="1.0.0-prod-v2.3-diagnostic",
+    version="1.0.0-prod-v2.3.1-diagnostic",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -25,7 +25,7 @@ app.include_router(metadata.router)
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Initializing RAG Pipeline v2.3-diagnostic...")
+    logger.info("Initializing RAG Pipeline v2.3.1-diagnostic...")
     logger.info(f"Debug mode: {settings.DEBUG}")
 
 @app.get("/")
@@ -33,7 +33,7 @@ async def root():
     return {
         "message": "RAG Pipeline API - Diagnostic Mode",
         "debug": settings.DEBUG,
-        "version": "1.0.0-prod-v2.3-diagnostic",
+        "version": "1.0.0-prod-v2.3.1-diagnostic",
         "status": "online",
         "endpoints": [
             "/docs - API Documentation",
@@ -55,10 +55,10 @@ async def list_available_models():
         
         available_models = []
         for model in models:
+            # Using bare names and display names to be safe against attribute changes
             available_models.append({
-                "name": model.name,
-                "display_name": model.display_name,
-                "supported_methods": model.supported_generation_methods
+                "name": getattr(model, "name", "unknown"),
+                "display_name": getattr(model, "display_name", "unknown")
             })
             
         return {
@@ -85,7 +85,7 @@ async def health():
         
         return {
             "status": "healthy",
-            "version": "v2.3-diagnostic",
+            "version": "v2.3.1",
             "services": {
                 "api": "running",
                 "database": "connected",
