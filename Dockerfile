@@ -33,5 +33,5 @@ RUN mkdir -p /app/uploads /app/data /app/chroma_data && \
 ENV PORT=7860
 EXPOSE 7860
 
-# Run using the uvicorn server, binding to the PORT environment variable
+# Cache buster to force rebuild: 2026-04-03-v1.3
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]

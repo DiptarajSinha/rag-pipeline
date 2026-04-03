@@ -33,7 +33,8 @@ async def root():
     return {
         "message": "RAG Pipeline API",
         "debug": settings.DEBUG,
-        "version": "1.0.0",
+        "version": "1.0.0-prod-v1.3",
+        "status": "online",
         "endpoints": [
             "/docs - API Documentation",
             "/upload - Upload PDF documents",
