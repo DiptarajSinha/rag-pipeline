@@ -28,9 +28,15 @@ You need the **DB_URL** to connect your app to the database.
 1.  In the Sidebar, go to **Project Settings** -> **Database**.
 2.  Scroll down to **Connection String**.
 3.  Select the **URI** tab.
-4.  Copy the URL. It will look like this:
-    `postgresql://postgres:[YOUR-PASSWORD]@[HOST]:5432/postgres`
-5.  **Replace `[YOUR-PASSWORD]`** with the real password you set in Step 1.
+4.  Copy the URL. 
+
+> [!CAUTION]
+> **IMPORTANT: No Brackets!**
+> When you paste your password into the URL, **DO NOT** keep the brackets `[` or `]`.
+> - **Wrong**: `postgresql://postgres:[mypassword]@db.xyz.supabase.co:5432/postgres`
+> - **Correct**: `postgresql://postgres:mypassword@db.xyz.supabase.co:5432/postgres`
+>
+> If your password contains special characters like `@` or `:`, you should URL-encode them.
 
 ---
 

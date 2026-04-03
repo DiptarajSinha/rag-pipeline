@@ -10,7 +10,7 @@ python-multipart
 sqlalchemy
 cohere
 python-dotenv
-google-generativeai
+google-genai
 pypdf
 pytest
 pytest-asyncio

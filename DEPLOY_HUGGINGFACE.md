@@ -36,30 +36,46 @@ There are two ways to get your code into Hugging Face. **I recommend Method A** 
     - `README.md`
 4.  Scroll down and click **"Commit changes to main"**.
 
-### Method B: Use GitHub (Permanent Connection)
-If you already have a GitHub repository, follow these steps to push your new files:
+### Method B: Push Directly to Hugging Face (Easiest & Most Reliable)
+If you can't find the "Connect to GitHub" button, don't worry—Hugging Face is actually a Git repository itself! You can push your code directly to it from your terminal.
 
-1.  **Initialize Git** (if not already done):
+1.  **Get your Space's Git URL**:
+    - In your Space, click the **"..."** (top right) -> **"Clone repository"**.
+    - Copy the `https://huggingface.co/spaces/...` URL.
+
+2.  **Add Hugging Face as a Remote**:
+    - In your local terminal, run:
     ```bash
-    git init
-    git add .
-    git commit -m "Initialize Production-Ready RAG Pipeline"
-    ```
-2.  **Push to GitHub**:
-    - Create a **New Repository** at [github.com/new](https://github.com/new).
-    - Run:
-    ```bash
-    git remote add origin https://github.com/[your-username]/[your-repo-name].git
-    git branch -M main
-    git push -u origin main
+    git remote add hf https://huggingface.co/spaces/[your-username]/[your-space-name]
     ```
 
-3.  **Link Hugging Face to GitHub**:
-    - In your Hugging Face Space, click the **Settings** tab.
-    - Scroll down to the **"Connected GitHub Repository"** section.
-    - Click **"Connect a GitHub repository"**.
-    - Select your new repository.
-    - Hugging Face will now automatically build and deploy every time you "push" to GitHub!
+3.  **Push your code**:
+    ```bash
+    git push -f hf main
+    ```
+    - *Note: If prompted for a password, use your Hugging Face **Access Token** (from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens))*.
+
+---
+
+### ⚠️ IMPORTANT: How to get your "Password" (Access Token)
+Hugging Face does **not** allow you to use your regular login password to push code with Git. You must use an **Access Token**.
+
+1.  Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
+2.  Click **"New token"**.
+3.  **Token Name**: `git-upload`
+4.  **Token Type**: Select **"Write"** (Required to upload code).
+5.  Click **"Create token"**.
+6.  **Copy the long code** (it starts with `hf_...`).
+
+When your terminal asks for your **Password**, simply **Paste** this token and press Enter. (The characters won't show up in the terminal while pasting—that's normal).
+
+---
+
+### Method C: Sync GitHub to Hugging Face (Advanced)
+If you want to keep using GitHub and have it update Hugging Face automatically:
+1.  Create a **GitHub Action** in your repo at `.github/workflows/sync.yml`.
+2.  Use the `HF_TOKEN` secret to push from GitHub to HF. 
+    *(I can help you write this script if you choose this method!)*
 
 ---
 
@@ -83,8 +99,8 @@ This is the most important step. **The app will not start without these.**
 ---
 
 ## Step 4: Deployment
-1.  Once you save your secrets and upload your code, Hugging Face will automatically detect the `README.md` frontmatter and start building the Docker image.
-2.  The logs will show the progress.
+1.  Once you push your code (Step 2) and save your secrets (Step 3), Hugging Face will automatically start building the Docker image.
+2.  Go to the **"Logs"** tab to see the progress.
 3.  Once finished, your API will be live!
 
 ---

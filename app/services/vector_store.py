@@ -1,24 +1,29 @@
 import vecs
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import os
 import logging
 from typing import List
+from .config import settings
 
 logger = logging.getLogger("rag-pipeline.vector_store")
 
-# Configure Google Generative AI for embeddings
-genai.configure(api_key=os.getenv("GOOGLE_GEMINI_API_KEY"))
-EMBEDDING_MODEL = "models/embedding-001"
-VECTOR_DIMENSION = 768 # models/embedding-001 dimension
+# Initialize Gemini Client
+client = None
+if settings.GOOGLE_GEMINI_API_KEY:
+    client = genai.Client(api_key=settings.GOOGLE_GEMINI_API_KEY)
+
+EMBEDDING_MODEL = "text-embedding-004" # Modern embedding model
+VECTOR_DIMENSION = 768
 
 # DB URL for Supabase
-DB_URL = os.getenv("DB_URL")
+DB_URL = settings.DB_URL
 COLLECTION_NAME = "document_embeddings"
 
 def _get_vecs_collection():
     """Helper to get/create a vecs collection"""
     if not DB_URL:
-        logger.error("DB_URL not found in environment variables.")
+        logger.error("DB_URL not found in settings.")
         return None
         
     try:
@@ -32,13 +37,17 @@ def _get_vecs_collection():
 
 def _get_embeddings(texts: List[str]) -> List[List[float]]:
     """Helper to get embeddings from Gemini API with batching"""
+    if not client:
+        raise ValueError("Gemini Client not initialized. Check API key.")
+        
     try:
-        result = genai.embed_content(
+        result = client.models.embed_content(
             model=EMBEDDING_MODEL,
-            content=texts,
-            task_type="retrieval_document"
+            contents=texts,
+            config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
         )
-        return result['embedding']
+        # Handle the result format from the new SDK
+        return [item.values for item in result.embeddings]
     except Exception as e:
         logger.error(f"Gemini Embedding API error: {e}")
         raise
@@ -57,7 +66,6 @@ def add_document_chunks(doc_id: str, chunks: List[str]) -> bool:
         embeddings = _get_embeddings(chunks)
         
         # Prepare data for vecs (id, vector, metadata)
-        # vecs expects a list of tuples: (id, vector, metadata)
         records = []
         for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
             chunk_id = f"{doc_id}_chunk_{i}"
@@ -69,9 +77,6 @@ def add_document_chunks(doc_id: str, chunks: List[str]) -> bool:
         
         # Upsert into pgvector
         collection.upsert(records=records)
-        
-        # Create an index if it doesn't exist (optional, but good for performance)
-        # For small datasets, this is fast.
         collection.create_index()
         
         return True
@@ -85,26 +90,26 @@ def search_similar_chunks(query: str, k: int = 5) -> List[str]:
     if not collection:
         return []
         
+    if not client:
+        logger.error("Gemini Client not initialized")
+        return []
+        
     try:
         # Generate query embedding
-        result = genai.embed_content(
+        result = client.models.embed_content(
             model=EMBEDDING_MODEL,
-            content=query,
-            task_type="retrieval_query"
+            contents=query,
+            config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
         )
-        query_embedding = result['embedding']
+        query_embedding = result.embeddings[0].values
         
         # Search in pgvector
-        # results = collection.query(data=query_embedding, limit=k, include_value=False, include_metadata=True)
-        # Note: vecs.query returns IDs by default, but we want the metadata/text
         results = collection.query(
             data=query_embedding,
             limit=k,
             include_metadata=True
         )
         
-        # Extract text from metadata
-        # vecs metadata is stored in the metadata column
         return [res[1].get("content", "") for res in results if res[1]]
     except Exception as e:
         logger.error(f"Error searching Supabase: {e}")
@@ -117,10 +122,7 @@ def get_collection_stats() -> dict:
         return {"total_chunks": 0}
         
     try:
-        # Get count of documents in the collection
-        # vecs doesn't have a direct count() on collection in all versions, 
-        # but we can query or use the metadata
-        total = collection.count() # Some versions of vecs support count()
+        total = collection.count()
         return {"total_chunks": total}
     except Exception as e:
         logger.error(f"Error retrieving collection stats: {e}")

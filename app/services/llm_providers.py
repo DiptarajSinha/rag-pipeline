@@ -1,14 +1,17 @@
-import os
-from typing import List
-from pydantic import BaseModel
-import google.generativeai as genai
+from typing import List, Optional
+import logging
+from google import genai
 import openai
 import cohere
+from pydantic import BaseModel
+from .config import settings
 
-# Configure API clients
-genai.configure(api_key=os.getenv("GOOGLE_GEMINI_API_KEY"))
-openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-cohere_client = cohere.Client(os.getenv("COHERE_API_KEY"))
+logger = logging.getLogger("rag-pipeline.llm_providers")
+
+# Initialize Gemini Client
+gemini_client = None
+if settings.GOOGLE_GEMINI_API_KEY:
+    gemini_client = genai.Client(api_key=settings.GOOGLE_GEMINI_API_KEY)
 
 class LLMRequest(BaseModel):
     query: str
@@ -24,23 +27,39 @@ class LLMProvider:
 
 class GeminiProvider(LLMProvider):
     def __init__(self):
-        super().__init__("gemini", 1)  # Priority 1 (highest)
-        self.model = genai.GenerativeModel("gemini-2.0-flash-lite")
+        super().__init__("gemini", 1)
+        self.model_id = "gemini-2.0-flash-lite"
     
     def generate(self, request: LLMRequest) -> str:
+        if not gemini_client:
+            raise ValueError("Gemini API key not configured")
+            
         prompt = f"Context: {request.context}\n\nQuestion: {request.query}\n\nAnswer:"
-        response = self.model.generate_content(prompt)
+        response = gemini_client.models.generate_content(
+            model=self.model_id,
+            contents=prompt
+        )
         return response.text
 
 class OpenAIProvider(LLMProvider):
     def __init__(self):
-        super().__init__("openai", 2)  # Priority 2
+        super().__init__("openai", 2)
+        self._client = None
+    
+    @property
+    def client(self):
+        if self._client is None and settings.OPENAI_API_KEY:
+            self._client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+        return self._client
     
     def generate(self, request: LLMRequest) -> str:
+        if not self.client:
+            raise ValueError("OpenAI API key not configured")
+            
         messages = [
             {"role": "user", "content": f"Context: {request.context}\n\nQuestion: {request.query}"}
         ]
-        response = openai_client.chat.completions.create(
+        response = self.client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
             temperature=0.2,
@@ -50,11 +69,21 @@ class OpenAIProvider(LLMProvider):
 
 class CohereProvider(LLMProvider):
     def __init__(self):
-        super().__init__("cohere", 3)  # Priority 3
+        super().__init__("cohere", 3)
+        self._client = None
+        
+    @property
+    def client(self):
+        if self._client is None and settings.COHERE_API_KEY:
+            self._client = cohere.Client(api_key=settings.COHERE_API_KEY)
+        return self._client
     
     def generate(self, request: LLMRequest) -> str:
+        if not self.client:
+            raise ValueError("Cohere API key not configured")
+            
         prompt = f"Context: {request.context}\n\nQuestion: {request.query}\n\nAnswer:"
-        response = cohere_client.generate(
+        response = self.client.generate(
             model="command-r",
             prompt=prompt,
             max_tokens=400,
@@ -62,20 +91,23 @@ class CohereProvider(LLMProvider):
         )
         return response.generations[0].text
 
-# Initialize providers in priority order
-PROVIDERS: List[LLMProvider] = [
-    GeminiProvider(),
-    OpenAIProvider(), 
-    CohereProvider()
-]
+# Initialize providers based on available keys
+AVAILABLE_PROVIDERS: List[LLMProvider] = []
+
+if settings.GOOGLE_GEMINI_API_KEY:
+    AVAILABLE_PROVIDERS.append(GeminiProvider())
+if settings.OPENAI_API_KEY:
+    AVAILABLE_PROVIDERS.append(OpenAIProvider())
+if settings.COHERE_API_KEY:
+    AVAILABLE_PROVIDERS.append(CohereProvider())
 
 def generate_with_fallback(request: LLMRequest) -> dict:
     """Try providers in order until one succeeds"""
-    last_error = None
+    last_error = "No providers configured"
     
-    for provider in PROVIDERS:
+    for provider in AVAILABLE_PROVIDERS:
         try:
-            print(f"Trying {provider.name}...")
+            logger.info(f"Trying LLM provider: {provider.name}")
             response = provider.generate(request)
             return {
                 "answer": response,
@@ -83,13 +115,12 @@ def generate_with_fallback(request: LLMRequest) -> dict:
                 "success": True
             }
         except Exception as e:
-            print(f"{provider.name} failed: {str(e)}")
+            logger.error(f"Provider {provider.name} failed: {str(e)}")
             last_error = str(e)
             continue
     
-    # If all providers fail
     return {
-        "answer": "Sorry, all AI providers are currently unavailable.",
+        "answer": "Sorry, no AI providers are currently available.",
         "provider_used": "none",
         "success": False,
         "error": last_error

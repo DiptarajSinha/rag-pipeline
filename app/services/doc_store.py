@@ -3,16 +3,13 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 import os
 import logging
+from .config import settings
 
 logger = logging.getLogger("rag-pipeline.doc_store")
 
-# Database configuration - defaults to local sqlite for dev, but REQUIRES postgres for prod
-DB_URL = os.getenv("DB_URL", "sqlite:///./data/metadata.db")
-DOC_LIMIT = 0 # Currently no limit, or fetch from env
-try:
-    DOC_LIMIT = int(os.getenv("DOC_LIMIT", "20"))
-except ValueError:
-    DOC_LIMIT = 20
+# Database configuration
+DB_URL = settings.DB_URL
+DOC_LIMIT = settings.DOC_LIMIT
 
 # SQLAlchemy setup
 # For Postgres, we don't need check_same_thread
