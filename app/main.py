@@ -13,7 +13,7 @@ logger = logging.getLogger("rag-pipeline")
 app = FastAPI(
     title="RAG Pipeline API",
     description="Production-grade Document RAG with Supabase and Gemini",
-    version="1.0.0-prod-v2.1-final",
+    version="1.0.0-prod-v2.2-pro",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -25,15 +25,15 @@ app.include_router(metadata.router)
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Initializing RAG Pipeline v2.1-final...")
+    logger.info("Initializing RAG Pipeline v2.2-pro...")
     logger.info(f"Debug mode: {settings.DEBUG}")
 
 @app.get("/")
 async def root():
     return {
-        "message": "RAG Pipeline API - Stable Production v2.1",
+        "message": "RAG Pipeline API - Stable Production v2.2-pro",
         "debug": settings.DEBUG,
-        "version": "1.0.0-prod-v2.1-final",
+        "version": "1.0.0-prod-v2.2-pro",
         "status": "online",
         "endpoints": [
             "/docs - API Documentation",
@@ -56,7 +56,7 @@ async def health():
         
         return {
             "status": "healthy",
-            "version": "v2.1-final",
+            "version": "v2.2-pro",
             "services": {
                 "api": "running",
                 "database": "connected",
