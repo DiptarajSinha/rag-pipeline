@@ -21,21 +21,24 @@ DB_URL = settings.DB_URL
 COLLECTION_NAME = "document_embeddings_v2" # Renamed to avoid dimension mismatch
 
 def _get_vecs_collection():
-    """Helper to get/create a vecs collection"""
-    if not DB_URL:
-        logger.error("DB_URL not found in settings.")
-        return None
+    """Helper to get/create a vecs collection with better diagnostics"""
+    db_url = settings.DB_URL
+    if not db_url:
+        logger.error("DATABASE ERROR: DB_URL is missing in settings.")
+        raise ValueError("DB_URL environment variable is not set. Please add it to Hugging Face Secrets.")
         
     try:
         # Create a vecs client
-        vx = vecs.create_client(DB_URL)
+        logger.info(f"Connecting to Supabase at {db_url.split('@')[-1]}...")
+        vx = vecs.create_client(db_url)
+        
         # Get or create the collection
-        logger.info(f"Connecting to vecs collection: {COLLECTION_NAME}")
+        logger.info(f"Accessing collection: {COLLECTION_NAME} (Dim: {VECTOR_DIMENSION})")
         return vx.get_or_create_collection(name=COLLECTION_NAME, dimension=VECTOR_DIMENSION)
     except Exception as e:
-        logger.error(f"SUPABASE_VECS_ERROR: {str(e)}")
-        # Raise it instead of returning None so the API can see it
-        raise ConnectionError(f"Supabase Vector Store connection failed: {str(e)}")
+        error_msg = str(e)
+        logger.error(f"SUPABASE_CONNECTION_ERROR: {error_msg}")
+        raise ConnectionError(f"Critical error connecting to Supabase: {error_msg}")
 
 def _get_embeddings(texts: List[str]) -> List[List[float]]:
     """Helper to get蓬 embeddings from Gemini API with batching (limit: 100 per request)"""
