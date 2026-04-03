@@ -12,8 +12,8 @@ logger = logging.getLogger("rag-pipeline")
 
 app = FastAPI(
     title="RAG Pipeline API",
-    description="Production-grade Document RAG with Supabase and Gemini",
-    version="1.0.0-prod-v2.3.1-diagnostic",
+    description="Production-grade Document RAG with Supabase and Gemini 2.5",
+    version="1.0.0-prod-v3.0-final",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -25,53 +25,24 @@ app.include_router(metadata.router)
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Initializing RAG Pipeline v2.3.1-diagnostic...")
+    logger.info("Initializing RAG Pipeline v3.0-final (Gemini 2.5 Flash)...")
     logger.info(f"Debug mode: {settings.DEBUG}")
 
 @app.get("/")
 async def root():
     return {
-        "message": "RAG Pipeline API - Diagnostic Mode",
+        "message": "RAG Pipeline API - Stable Production v3.0",
         "debug": settings.DEBUG,
-        "version": "1.0.0-prod-v2.3.1-diagnostic",
+        "version": "1.0.0-prod-v3.0-final",
         "status": "online",
         "endpoints": [
             "/docs - API Documentation",
-            "/models - Diagnostic endpoint to list available models",
             "/upload - Upload PDF documents",
             "/query - Query documents",
             "/metadata - Document metadata",
             "/health - Health check"
         ]
     }
-
-@app.get("/models")
-async def list_available_models():
-    """Diagnostic endpoint to list models actually available to the API key"""
-    try:
-        from google import genai
-        client = genai.Client(api_key=settings.GOOGLE_GEMINI_API_KEY)
-        models = client.models.list()
-        
-        available_models = []
-        for model in models:
-            # Using bare names and display names to be safe against attribute changes
-            available_models.append({
-                "name": getattr(model, "name", "unknown"),
-                "display_name": getattr(model, "display_name", "unknown")
-            })
-            
-        return {
-            "status": "success",
-            "count": len(available_models),
-            "models": available_models
-        }
-    except Exception as e:
-        logger.error(f"Failed to list models: {str(e)}")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
 
 @app.get("/health")
 async def health():
@@ -85,12 +56,13 @@ async def health():
         
         return {
             "status": "healthy",
-            "version": "v2.3.1",
+            "version": "v3.0-final",
             "services": {
                 "api": "running",
                 "database": "connected",
                 "vector_store": "connected",
-                "llm_providers": "configured"
+                "llm_providers": "configured",
+                "gemini_model": "gemini-2.5-flash"
             },
             "stats": {
                 "documents": doc_stats.get("total_documents", 0),

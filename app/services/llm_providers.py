@@ -30,8 +30,8 @@ class LLMProvider:
 class GeminiProvider(LLMProvider):
     def __init__(self):
         super().__init__("gemini", 1)
-        # Reverting to a known-available model for diagnostic phase
-        self.model_id = "gemini-2.0-flash-lite"
+        # Using the verified Gemini 2.5 Flash model from the diagnostic list
+        self.model_id = "gemini-2.5-flash"
     
     def generate(self, request: LLMRequest) -> str:
         if not gemini_client:
@@ -46,7 +46,7 @@ class GeminiProvider(LLMProvider):
         
         user_prompt = f"CONTEXT:\n{request.context}\n\nQUESTION: {request.query}\n\nANSWER:"
         
-        # Retry loop for 429s
+        # Retry loop for 429s (Rate Limits)
         max_retries = 3
         for attempt in range(max_retries):
             try:
@@ -151,7 +151,7 @@ def generate_with_fallback(request: LLMRequest) -> dict:
             logger.error(f"Provider {provider.name} failed: {error_str}")
             
             if "429" in error_str or "quota" in error_str.lower():
-                last_error = f"Rate limit reached for {provider.name}. Please check available models."
+                last_error = f"Rate limit reached for {provider.name}. Please wait for a fresh quota bucket."
             else:
                 last_error = error_str
             continue
