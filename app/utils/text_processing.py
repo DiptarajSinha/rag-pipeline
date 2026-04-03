@@ -13,28 +13,21 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[st
     start = 0
     
     while start < len(words):
-        # Calculate end position
         end = start + chunk_size
-        
-        # Get chunk words
         chunk_words = words[start:end]
         chunk_text = " ".join(chunk_words)
         
-        # Add chunk if it has content
         if chunk_text.strip():
             chunks.append(chunk_text)
         
-        # Move start position (with overlap)
         start = end - overlap
-        
-        # Break if we've processed all words
         if end >= len(words):
             break
     
     return chunks
 
 def extract_pdf_text(file_path: str) -> str:
-    """Extract text from PDF file with improved character handling"""
+    """Extract text from PDF file"""
     try:
         from pypdf import PdfReader
         
@@ -42,7 +35,6 @@ def extract_pdf_text(file_path: str) -> str:
         text_content = ""
         
         for page in reader.pages:
-            # Using basic extraction - cleaning will happen in clean_text
             page_text = page.extract_text()
             if page_text:
                 text_content += page_text + "\n"
@@ -53,23 +45,23 @@ def extract_pdf_text(file_path: str) -> str:
         return ""
 
 def clean_text(text: str) -> str:
-    """Clean and normalize text, fixing 's p a c e d' character issues"""
+    """Rigorous text cleaning to resolve 's p a c e d' character issues from PDFs"""
     if not text:
         return ""
     
-    # Fix 's p a c e d o u t' characters (common in some PDFs)
-    # This regex looks for single letters separated by single spaces
-    # and joins them back together if they appear in a sequence.
-    def fix_spaced_text(match):
-        # Join the characters and remove the spaces between them
-        return match.group(0).replace(" ", "")
-
-    # Look for sequences of [Letter Space Letter Space Letter]
-    # We do this a few times to catch longer words
-    text = re.sub(r'([a-zA-Z0-9])\s([a-zA-Z0-9])\s([a-zA-Z0-9])\s([a-zA-Z0-9])', fix_spaced_text, text)
-    text = re.sub(r'([a-zA-Z0-9])\s([a-zA-Z0-9])', fix_spaced_text, text)
+    # 1. First, fix the 's p a c e d o u t' characters.
+    # This regex finds single characters surrounded by spaces and joins them.
+    # It specifically targets cases where there are multiple single characters in a row.
     
-    # Remove extra whitespace and normalize
+    # Pattern: a space, then a single char, then a space (repeatedly)
+    # We use a loop to ensure we catch all overlapping patterns
+    for _ in range(3):
+        text = re.sub(r'(^|\s)([a-zA-Z0-9])\s(?=[a-zA-Z0-9](\s|$))', r'\1\2', text)
+
+    # 2. Fix cases where punctuation might be spaced out
+    text = re.sub(r'\s+([,.!?])', r'\1', text)
+    
+    # 3. Remove extra whitespace and normalize
     text = " ".join(text.split())
     
     return text
