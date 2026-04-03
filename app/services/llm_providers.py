@@ -30,8 +30,8 @@ class LLMProvider:
 class GeminiProvider(LLMProvider):
     def __init__(self):
         super().__init__("gemini", 1)
-        # Upgrading to Gemini 3 Flash for elite speed and fresh quota
-        self.model_id = "gemini-3-flash"
+        # Reverting to a known-available model for diagnostic phase
+        self.model_id = "gemini-2.0-flash-lite"
     
     def generate(self, request: LLMRequest) -> str:
         if not gemini_client:
@@ -151,7 +151,7 @@ def generate_with_fallback(request: LLMRequest) -> dict:
             logger.error(f"Provider {provider.name} failed: {error_str}")
             
             if "429" in error_str or "quota" in error_str.lower():
-                last_error = f"Rate limit reached for {provider.name}. Please wait for a fresh quota bucket."
+                last_error = f"Rate limit reached for {provider.name}. Please check available models."
             else:
                 last_error = error_str
             continue
