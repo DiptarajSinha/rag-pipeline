@@ -13,7 +13,7 @@ logger = logging.getLogger("rag-pipeline")
 app = FastAPI(
     title="RAG Pipeline API",
     description="Document upload and intelligent querying system with metadata management",
-    version="1.0.0-prod-v1.5",
+    version="1.0.0-prod-v1.6",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -25,7 +25,7 @@ app.include_router(metadata.router)
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("Initializing RAG Pipeline v1.5...")
+    logger.info("Initializing RAG Pipeline v1.6...")
     logger.info(f"Debug mode: {settings.DEBUG}")
 
 @app.get("/")
@@ -33,7 +33,7 @@ async def root():
     return {
         "message": "RAG Pipeline API",
         "debug": settings.DEBUG,
-        "version": "1.0.0-prod-v1.5",
+        "version": "1.0.0-prod-v1.6",
         "status": "online",
         "endpoints": [
             "/docs - API Documentation",
@@ -56,7 +56,7 @@ async def health():
         
         return {
             "status": "healthy",
-            "version": "v1.5",
+            "version": "v1.6",
             "services": {
                 "api": "running",
                 "database": "connected",
