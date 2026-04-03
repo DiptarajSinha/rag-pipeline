@@ -30,18 +30,18 @@ class LLMProvider:
 class GeminiProvider(LLMProvider):
     def __init__(self):
         super().__init__("gemini", 1)
-        self.model_id = "gemini-2.0-flash"
+        # Upgrading to Gemini 3 Flash for elite speed and fresh quota
+        self.model_id = "gemini-3-flash"
     
     def generate(self, request: LLMRequest) -> str:
         if not gemini_client:
             raise ValueError("Gemini API key not configured")
             
-        # PROMPT IMPROVEMENTS: STRICT INSTRUCTIONS
         system_prompt = (
             "You are a professional RAG assistant. "
             "Use ONLY the following context to answer the user's question. "
             "If the answer is not in the context, say 'I cannot find the answer in the documents provided.' "
-            "Keep your answer concise and accurate. DO NOT repeat the context itself; just provide the answer."
+            "Keep your answer concise and accurate. DO NOT repeat the context itself."
         )
         
         user_prompt = f"CONTEXT:\n{request.context}\n\nQUESTION: {request.query}\n\nANSWER:"
@@ -55,9 +55,8 @@ class GeminiProvider(LLMProvider):
                     contents=user_prompt,
                     config=types.GenerateContentConfig(
                         system_instruction=system_prompt,
-                        temperature=0.1,  # Focused, deterministic answers
-                        max_output_tokens=1000,
-                        top_p=0.9
+                        temperature=0.1,
+                        max_output_tokens=1000
                     )
                 )
                 if not response.text:
@@ -66,8 +65,8 @@ class GeminiProvider(LLMProvider):
             except Exception as e:
                 error_str = str(e)
                 if ("429" in error_str or "quota" in error_str.lower() or "RESOURCE_EXHAUSTED" in error_str) and attempt < max_retries - 1:
-                    wait_time = 10 * (attempt + 1)
-                    logger.warning(f"Gemini Rate Limit hit. Retrying in {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                    wait_time = 5 * (attempt + 1)
+                    logger.warning(f"Rate Limit hit. Retrying in {wait_time}s... (Attempt {attempt+1}/{max_retries})")
                     time.sleep(wait_time)
                     continue
                 raise e
@@ -116,7 +115,7 @@ class CohereProvider(LLMProvider):
         if not self.client:
             raise ValueError("Cohere API key not configured")
             
-        prompt = f"Use the context below to answer the question.\nContext: {request.context}\nQuestion: {request.query}\nAnswer:"
+        prompt = f"Context: {request.context}\nQuestion: {request.query}\nAnswer:"
         response = self.client.generate(
             model="command-r",
             prompt=prompt,
@@ -152,7 +151,7 @@ def generate_with_fallback(request: LLMRequest) -> dict:
             logger.error(f"Provider {provider.name} failed: {error_str}")
             
             if "429" in error_str or "quota" in error_str.lower():
-                last_error = f"Rate limit reached for {provider.name}. The system tried retrying but the quota is exhausted. Please wait 60 seconds."
+                last_error = f"Rate limit reached for {provider.name}. Please wait for a fresh quota bucket."
             else:
                 last_error = error_str
             continue
