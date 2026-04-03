@@ -36,33 +36,42 @@ def _get_vecs_collection():
         return None
 
 def _get_embeddings(texts: List[str]) -> List[List[float]]:
-    """Helper to get embeddings from Gemini API with batching"""
+    """Helper to get蓬 embeddings from Gemini API with batching (limit: 100 per request)"""
     if not client:
         raise ValueError("Gemini Client not initialized. Check API key.")
         
+    batch_size = 100
+    all_embeddings = []
+    
     try:
-        result = client.models.embed_content(
-            model=EMBEDDING_MODEL,
-            contents=texts,
-            config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
-        )
-        # Handle the result format from the new SDK
-        return [item.values for item in result.embeddings]
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            logger.info(f"Generating embeddings for batch {i//batch_size + 1} ({len(batch)} items)")
+            
+            result = client.models.embed_content(
+                model=EMBEDDING_MODEL,
+                contents=batch,
+                config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
+            )
+            # Handle the result format from the new SDK
+            all_embeddings.extend([item.values for item in result.embeddings])
+            
+        return all_embeddings
     except Exception as e:
         logger.error(f"Gemini Embedding API error: {e}")
         raise
 
-def add_document_chunks(doc_id: str, chunks: List[str]) -> bool:
+def add_document_chunks(doc_id: str, chunks: List[str]):
     """Add document chunks to Supabase using Gemini Embeddings"""
     collection = _get_vecs_collection()
     if not collection:
-        return False
+        raise ConnectionError("Could not connect to Supabase pgvector.")
         
     try:
         if not chunks:
-            return True
+            return
             
-        # Generate embeddings via API
+        # Generate embeddings via API (now with batching)
         embeddings = _get_embeddings(chunks)
         
         # Prepare data for vecs (id, vector, metadata)
@@ -76,13 +85,16 @@ def add_document_chunks(doc_id: str, chunks: List[str]) -> bool:
             ))
         
         # Upsert into pgvector
+        logger.info(f"Upserting {len(records)} records into Supabase...")
         collection.upsert(records=records)
+        
+        # Create an index for faster retrieval
+        logger.info("Updating vector index...")
         collection.create_index()
         
-        return True
     except Exception as e:
         logger.error(f"Error adding chunks to Supabase: {e}")
-        return False
+        raise # Raise to show details in the API response
 
 def search_similar_chunks(query: str, k: int = 5) -> List[str]:
     """Search for similar document chunks using Gemini Embedding API and Supabase"""

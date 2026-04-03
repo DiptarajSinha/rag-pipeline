@@ -72,11 +72,11 @@ async def upload_document(file: UploadFile = File(...)):
             raise HTTPException(status_code=400, detail="No text content found in document")
         
         # Add chunks to vector database
-        success = add_document_chunks(doc_id, chunks)
-        
-        if not success:
-            logger.error(f"Vector store indexing failed for {doc_id}")
-            raise HTTPException(status_code=500, detail="Failed to process document in vector store")
+        try:
+            add_document_chunks(doc_id, chunks)
+        except Exception as e:
+            logger.error(f"Vector store indexing failed for {doc_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to process document in vector store: {str(e)}")
         
         # Save metadata to database
         metadata_saved = save_metadata(
