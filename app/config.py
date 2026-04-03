@@ -6,13 +6,11 @@ class Settings(BaseSettings):
     DB_URL: str
     OPENAI_API_KEY: Optional[str] = None
     COHERE_API_KEY: Optional[str] = None
+    DOC_LIMIT: int = 20
     DEBUG: bool = False
 
     class Config:
         env_file = ".env"
-        extra = "ignore" # Ignore extra env vars
+        extra = "ignore" 
 
 settings = Settings()
-
-# Usage example:
-#print(settings.OPENAI_API_KEY)
