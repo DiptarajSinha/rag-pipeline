@@ -29,8 +29,8 @@ class LLMProvider:
 class GeminiProvider(LLMProvider):
     def __init__(self):
         super().__init__("gemini", 1)
-        # Using Gemini 1.5 Flash for better stability and higher Free Tier quota
-        self.model_id = "gemini-1.5-flash"
+        # Using Gemini 2.0 Flash as the most stable current flagship
+        self.model_id = "gemini-2.0-flash"
     
     def generate(self, request: LLMRequest) -> str:
         if not gemini_client:
