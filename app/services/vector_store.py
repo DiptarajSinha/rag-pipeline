@@ -7,7 +7,7 @@ from typing import List
 from ..config import settings
 
 logger = logging.getLogger("rag-pipeline.vector_store")
-logger.info("VECTOR_STORE_V1.7_INITIALIZED")
+logger.info("VECTOR_STORE_V1.8_INITIALIZED")
 
 # Initialize Gemini Client
 client = None
@@ -16,9 +16,10 @@ if settings.GOOGLE_GEMINI_API_KEY:
 
 # Modern Google GenAI SDK model names
 PRIMARY_MODEL = "gemini-embedding-001"
-# Critical Update: gemini-embedding-001 returns 3072 dimensions by default in the new SDK
-VECTOR_DIMENSION = 3072
-COLLECTION_NAME = "document_embeddings_v3" # Renamed to apply new dimension
+# Update: gemini-embedding-001 returns 3072 by default, but we truncate to 768
+# to stay within PostgreSQL HNSW index limits (max 2000).
+VECTOR_DIMENSION = 768
+COLLECTION_NAME = "document_embeddings_v4" 
 
 def _get_vecs_collection():
     """Helper to get/create a vecs collection with better diagnostics"""
@@ -39,7 +40,7 @@ def _get_vecs_collection():
         raise ConnectionError(f"Critical error connecting to Supabase: {error_msg}")
 
 def _get_embeddings(texts: List[str]) -> List[List[float]]:
-    """Helper to get embeddings from Gemini API with batching"""
+    """Helper to get embeddings from Gemini API with batching and truncation"""
     if not client:
         raise ValueError("Gemini Client not initialized. Check API key.")
         
@@ -49,12 +50,15 @@ def _get_embeddings(texts: List[str]) -> List[List[float]]:
     try:
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]
-            logger.info(f"Generating embeddings using {PRIMARY_MODEL}...")
+            logger.info(f"Generating 768-dim embeddings using {PRIMARY_MODEL}...")
             
             result = client.models.embed_content(
                 model=PRIMARY_MODEL,
                 contents=batch,
-                config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
+                config=types.EmbedContentConfig(
+                    task_type="RETRIEVAL_DOCUMENT",
+                    output_dimensionality=VECTOR_DIMENSION # Truncate to 768
+                )
             )
             all_embeddings.extend([item.values for item in result.embeddings])
         return all_embeddings
@@ -94,7 +98,10 @@ def search_similar_chunks(query: str, k: int = 5) -> List[str]:
         result = client.models.embed_content(
             model=PRIMARY_MODEL,
             contents=query,
-            config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_QUERY",
+                output_dimensionality=VECTOR_DIMENSION # Truncate to 768
+            )
         )
         query_embedding = result.embeddings[0].values
         
