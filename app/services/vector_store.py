@@ -7,7 +7,7 @@ from typing import List
 from ..config import settings
 
 logger = logging.getLogger("rag-pipeline.vector_store")
-logger.info("VECTOR_STORE_V1.6_INITIALIZED")
+logger.info("VECTOR_STORE_V1.7_INITIALIZED")
 
 # Initialize Gemini Client
 client = None
@@ -15,11 +15,10 @@ if settings.GOOGLE_GEMINI_API_KEY:
     client = genai.Client(api_key=settings.GOOGLE_GEMINI_API_KEY)
 
 # Modern Google GenAI SDK model names
-# Update: 'text-embedding-004' is deprecated in some SDK versions,
-# 'gemini-embedding-001' is the new standard.
 PRIMARY_MODEL = "gemini-embedding-001"
-VECTOR_DIMENSION = 768
-COLLECTION_NAME = "document_embeddings_v2"
+# Critical Update: gemini-embedding-001 returns 3072 dimensions by default in the new SDK
+VECTOR_DIMENSION = 3072
+COLLECTION_NAME = "document_embeddings_v3" # Renamed to apply new dimension
 
 def _get_vecs_collection():
     """Helper to get/create a vecs collection with better diagnostics"""
@@ -32,6 +31,7 @@ def _get_vecs_collection():
         vx = vecs.create_client(db_url)
         
         # Get or create the collection
+        logger.info(f"Accessing collection: {COLLECTION_NAME} (Dim: {VECTOR_DIMENSION})")
         return vx.get_or_create_collection(name=COLLECTION_NAME, dimension=VECTOR_DIMENSION)
     except Exception as e:
         error_msg = str(e)
